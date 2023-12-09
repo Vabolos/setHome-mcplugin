@@ -1,0 +1,8 @@
+name: setHome
+version: '${project.version}'
+main: home.sethome.SetHome
+api-version: '1.20'
+
+commands:
+  sethome:
+  home:
