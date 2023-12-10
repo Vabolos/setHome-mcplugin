@@ -9,6 +9,8 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -59,28 +61,63 @@ public class SetHome extends JavaPlugin {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, Command cmd, @NotNull String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, @NotNull String[] args) {
         if (cmd.getName().equalsIgnoreCase("sethome") && sender instanceof Player) {
             Player player = (Player) sender;
-            saveHomeLocation(player.getName(), player.getLocation());
-            player.sendMessage("Home location set!");
+            Location existingHome = getHomeLocation(player.getName());
+            if (existingHome != null) {
+                player.sendMessage("§l§bYou already have a home set! Use /delhome to delete it first.");
+            } else {
+                saveHomeLocation(player.getName(), player.getLocation());
+                player.sendMessage("§l§bHome location set!");
+            }
             return true;
         } else if (cmd.getName().equalsIgnoreCase("home") && sender instanceof Player) {
             Player player = (Player) sender;
             Location homeLocation = getHomeLocation(player.getName());
             if (homeLocation != null) {
-                player.teleport(homeLocation);
-                player.sendMessage("Teleported to your home!");
+                player.sendMessage("§l§bTeleporting to your home in 3 seconds...");
+                BukkitTask task = new BukkitRunnable() {
+                    int count = 3;
 
-                // Play the teleportation sound effect at the player's location
-                player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+                    @Override
+                    public void run() {
+                        if (count > 0) {
+                            player.sendMessage("§l§bIn " + count + " seconds...");
+                            count--;
+                        } else {
+                            player.teleport(homeLocation);
+                            player.sendMessage("§l§bTeleported to your home!");
+                            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+                            cancel(); // Cancel the task after teleportation
+                        }
+                    }
+                }.runTaskTimer(this, 0L, 20L); // Delay: 0 ticks, Repeat: 20 ticks (1 second)
             } else {
-                player.sendMessage("You don't have a home set. Use /sethome to set your home.");
+                player.sendMessage("§l§cYou don't have a home set. Use /sethome to set your home.");
+            }
+            return true;
+        } else if (cmd.getName().equalsIgnoreCase("delhome") && sender instanceof Player) {
+            Player player = (Player) sender;
+            if (deleteHomeLocation(player.getName())) {
+                player.sendMessage("§l§bYour home has been deleted!");
+            } else {
+                player.sendMessage("§l§bYou don't have a home set.");
             }
             return true;
         }
         return false;
     }
+
+    private boolean deleteHomeLocation(String playerName) {
+        if (homesData != null && homesData.containsKey(playerName)) {
+            homesData.remove(playerName);
+            saveHomesData(); // Save updated homes data after deletion
+            return true;
+        }
+        return false;
+    }
+
 
     private void saveHomeLocation(String playerName, Location location) {
         if (homesData == null) {
