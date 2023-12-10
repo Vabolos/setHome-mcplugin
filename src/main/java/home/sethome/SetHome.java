@@ -2,6 +2,7 @@ package home.sethome;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -66,43 +67,43 @@ public class SetHome extends JavaPlugin {
             Player player = (Player) sender;
             Location existingHome = getHomeLocation(player.getName());
             if (existingHome != null) {
-                player.sendMessage("§l§bYou already have a home set! Use /delhome to delete it first.");
+                player.sendMessage(String.valueOf(ChatColor.RED) + ChatColor.BOLD + "You already have a home set!" + ChatColor.ITALIC + " (use /delhome)");
             } else {
                 saveHomeLocation(player.getName(), player.getLocation());
-                player.sendMessage("§l§bHome location set!");
+                player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD + "Home location set!");
             }
             return true;
         } else if (cmd.getName().equalsIgnoreCase("home") && sender instanceof Player) {
             Player player = (Player) sender;
             Location homeLocation = getHomeLocation(player.getName());
             if (homeLocation != null) {
-                player.sendMessage("§l§bTeleporting to your home in 3 seconds...");
+                player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD + "Teleporting to your home in 3 seconds...");
                 BukkitTask task = new BukkitRunnable() {
                     int count = 3;
 
                     @Override
                     public void run() {
                         if (count > 0) {
-                            player.sendMessage("§l§bIn " + count + " seconds...");
+                            player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD + ChatColor.ITALIC + count + " seconds...");
                             count--;
                         } else {
                             player.teleport(homeLocation);
-                            player.sendMessage("§l§bTeleported to your home!");
+                            player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD  + "Welcome home, " + ChatColor.BLUE + ChatColor.BOLD + player.getName());
                             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
                             cancel(); // Cancel the task after teleportation
                         }
                     }
                 }.runTaskTimer(this, 0L, 20L); // Delay: 0 ticks, Repeat: 20 ticks (1 second)
             } else {
-                player.sendMessage("§l§cYou don't have a home set. Use /sethome to set your home.");
+                player.sendMessage(String.valueOf(ChatColor.RED) + ChatColor.BOLD + "You don't have a home set!" + ChatColor.ITALIC + " (use /sethome)");
             }
             return true;
         } else if (cmd.getName().equalsIgnoreCase("delhome") && sender instanceof Player) {
             Player player = (Player) sender;
             if (deleteHomeLocation(player.getName())) {
-                player.sendMessage("§l§bYour home has been deleted!");
+                player.sendMessage(String.valueOf(ChatColor.RED) + ChatColor.BOLD + "Home location deleted!");
             } else {
-                player.sendMessage("§l§bYou don't have a home set.");
+                player.sendMessage(String.valueOf(ChatColor.RED) + ChatColor.BOLD + "You don't have a home set!");
             }
             return true;
         }
