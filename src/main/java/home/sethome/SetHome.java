@@ -2,10 +2,7 @@ package home.sethome;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -90,6 +87,12 @@ public class SetHome extends JavaPlugin {
                             player.teleport(homeLocation);
                             player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD  + "Welcome home, " + ChatColor.BLUE + ChatColor.BOLD + player.getName());
                             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+
+                            for (int i = 0; i < 20; i++) {
+                                player.getWorld().spawnParticle(Particle.ENCHANTMENT_TABLE, player.getLocation(), 20);
+                                player.getWorld().spawnParticle(Particle.REDSTONE, player.getLocation(), 10, 0.5, 0.5, 0.5, 0.1, new Particle.DustOptions(Color.fromRGB(0, 255, 255), 1.0F));
+                            }
+
                             cancel(); // Cancel the task after teleportation
                         }
                     }
