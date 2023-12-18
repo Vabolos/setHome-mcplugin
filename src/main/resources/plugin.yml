@@ -7,3 +7,4 @@ commands:
   sethome:
   home:
   delhome:
+  homes:
