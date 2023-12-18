@@ -8,6 +8,7 @@ The SetHome plugin is a convenient Minecraft Spigot plugin that allows players t
 - Allows players to set a home location with `/sethome`.
 - Teleports players to their home location using `/home`.
 - Deletes the player's home location using `/delhome`.
+- Opens interactive GUI with homes display `/homes` **(new!!)**
 
 ## Installation
 
@@ -20,12 +21,14 @@ The SetHome plugin is a convenient Minecraft Spigot plugin that allows players t
 - Use `/sethome` command to set your home location.
 - Use `/home` command to teleport back to your home location.
 - Use `/delhome` command to delete your home location.
+- Use `/homes` command to start using the **new** interactive GUI
 
 ## Commands
 
 - `/sethome`: Sets a home location for the player.
 - `/home`: Teleports the player to their home location.
 - `/delhome`: Deletes the player's home location.
+- `/homes`: Opens interactive GUI
 
 ## Permissions
 
