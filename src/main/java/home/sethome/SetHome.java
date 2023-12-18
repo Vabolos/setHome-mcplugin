@@ -6,9 +6,14 @@ import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -16,13 +21,15 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
 
-public class SetHome extends JavaPlugin {
+public class SetHome extends JavaPlugin implements Listener {
 
     private File dataFile;
-    private HashMap<String, HomeData> homesData;
+    private HashMap<String, Map<String, HomeData>> playerHomes;
+    private HashMap<Player, Map<String, HomeData>> playerSelectedHomes;
     private Gson gson;
 
     @Override
@@ -30,6 +37,8 @@ public class SetHome extends JavaPlugin {
         gson = new Gson();
         dataFile = new File(getDataFolder(), "homes.json");
         boolean fileExists = dataFile.exists();
+        playerSelectedHomes = new HashMap<>();
+        getServer().getPluginManager().registerEvents(this, this);
 
         if (!fileExists) {
             if (!dataFile.getParentFile().mkdirs()) {
@@ -56,98 +65,165 @@ public class SetHome extends JavaPlugin {
     public void onDisable() {
         saveHomesData();
         getLogger().info("SetHomePlugin has been disabled!");
+        playerSelectedHomes.clear();
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, @NotNull String[] args) {
         if (cmd.getName().equalsIgnoreCase("sethome") && sender instanceof Player) {
             Player player = (Player) sender;
-            Location existingHome = getHomeLocation(player.getName());
-            if (existingHome != null) {
-                player.sendMessage(String.valueOf(ChatColor.RED) + ChatColor.BOLD + "You already have a home set!" + ChatColor.ITALIC + " (use /delhome)");
-            } else {
-                saveHomeLocation(player.getName(), player.getLocation());
-                player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD + "Home location set!");
+            if (args.length < 1) {
+                player.sendMessage(ChatColor.RED + "Usage: /sethome <name>");
+                return true;
             }
+
+            String homeName = args[0];
+            saveHomeLocation(player.getName(), homeName, player.getLocation());
+            player.sendMessage(ChatColor.AQUA + "Home '" + ChatColor.BLUE + homeName + ChatColor.AQUA + "' location set!");
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 5.0f, 1.0f); // Play XP sound
             return true;
         } else if (cmd.getName().equalsIgnoreCase("home") && sender instanceof Player) {
             Player player = (Player) sender;
-            Location homeLocation = getHomeLocation(player.getName());
+            String homeName = args.length > 0 ? args[0] : "blank";
+            Location homeLocation = getHomeLocation(player.getName(), homeName);
             if (homeLocation != null) {
-                player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD + "Teleporting to your home in 3 seconds...");
-                BukkitTask task = new BukkitRunnable() {
-                    int count = 3;
-
-                    @Override
-                    public void run() {
-                        if (count > 0) {
-                            player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD + ChatColor.ITALIC + count + " seconds...");
-                            count--;
-                        } else {
-                            player.teleport(homeLocation);
-                            player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.BOLD  + "Welcome home, " + ChatColor.BLUE + ChatColor.BOLD + player.getName());
-                            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
-
-                            for (int i = 0; i < 20; i++) {
-                                player.getWorld().spawnParticle(Particle.ENCHANTMENT_TABLE, player.getLocation(), 20);
-                                player.getWorld().spawnParticle(Particle.REDSTONE, player.getLocation(), 10, 0.5, 0.5, 0.5, 0.1, new Particle.DustOptions(Color.fromRGB(0, 255, 255), 1.0F));
-                            }
-
-                            cancel(); // Cancel the task after teleportation
-                        }
-                    }
-                }.runTaskTimer(this, 0L, 20L); // Delay: 0 ticks, Repeat: 20 ticks (1 second)
+                teleportWithCountdown(player, homeLocation);
             } else {
-                player.sendMessage(String.valueOf(ChatColor.RED) + ChatColor.BOLD + "You don't have a home set!" + ChatColor.ITALIC + " (use /sethome)");
+                player.sendMessage(ChatColor.RED + "Home '" + homeName + "' not found!");
             }
             return true;
         } else if (cmd.getName().equalsIgnoreCase("delhome") && sender instanceof Player) {
             Player player = (Player) sender;
-            if (deleteHomeLocation(player.getName())) {
-                player.sendMessage(String.valueOf(ChatColor.RED) + ChatColor.BOLD + "Home location deleted!");
+            String homeName = args.length > 0 ? args[0] : "blank";
+            if (deleteHomeLocation(player.getName(), homeName)) {
+                player.sendMessage(ChatColor.RED + "Home '" + homeName + "' deleted!");
             } else {
-                player.sendMessage(String.valueOf(ChatColor.RED) + ChatColor.BOLD + "You don't have a home set!");
+                player.sendMessage(ChatColor.RED + "Home '" + homeName + "' not found!");
             }
+        } else if (cmd.getName().equalsIgnoreCase("homes") && sender instanceof Player) {
+            Player player = (Player) sender;
+            openHomesGUI(player);
             return true;
         }
         return false;
     }
 
-    private boolean deleteHomeLocation(String playerName) {
-        if (homesData != null && homesData.containsKey(playerName)) {
-            homesData.remove(playerName);
-            saveHomesData(); // Save updated homes data after deletion
-            return true;
+    private Map<String, HomeData> getPlayerHomes(String playerName) {
+        return (playerHomes != null && playerHomes.containsKey(playerName)) ? playerHomes.get(playerName) : null;
+    }
+
+    private void openHomesGUI(Player player) {
+        Map<String, HomeData> playerHomeData = getPlayerHomes(player.getName());
+        if (playerHomeData != null && !playerHomeData.isEmpty()) {
+            int numRows = (int) Math.ceil((double) playerHomeData.size() / 9);
+            Inventory homesGUI = Bukkit.createInventory(null, numRows * 9, ChatColor.BOLD + "Your Homes");
+
+            int slot = 0;
+            for (Map.Entry<String, HomeData> entry : playerHomeData.entrySet()) {
+                String homeName = entry.getKey();
+                ItemStack bedItem = createBedItem(homeName);
+                homesGUI.setItem(slot++, bedItem);
+            }
+
+            player.openInventory(homesGUI);
+            playerSelectedHomes.put(player, playerHomeData);
+        } else {
+            player.sendMessage(ChatColor.RED + "You don't have any homes set!");
+        }
+    }
+
+    private ItemStack createBedItem(String homeName) {
+        ItemStack bedItem = new ItemStack(Material.RED_BED);
+        ItemMeta meta = bedItem.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.AQUA + homeName);
+            bedItem.setItemMeta(meta);
+        }
+        return bedItem;
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
+
+        Player player = (Player) event.getWhoClicked();
+        Inventory clickedInventory = event.getClickedInventory();
+
+        if (clickedInventory != null && event.getView().getTitle().equals(String.valueOf(ChatColor.DARK_GREEN) + ChatColor.BOLD + "Your Homes")) {
+            ItemStack clickedItem = event.getCurrentItem();
+            if (clickedItem != null && clickedItem.getType() == Material.RED_BED && clickedItem.hasItemMeta()) {
+                event.setCancelled(true);
+                ItemMeta meta = clickedItem.getItemMeta();
+                if (meta != null && meta.hasDisplayName()) {
+                    player.sendMessage(ChatColor.RED + "Use /home <name> to teleport!");
+                }
+            }
+        }
+    }
+
+    private void teleportWithCountdown(Player player, Location targetLocation) {
+        player.sendMessage(ChatColor.AQUA + "Teleporting to your home in 3 seconds...");
+        new BukkitRunnable() {
+            int count = 3;
+
+            @Override
+            public void run() {
+                if (count > 0) {
+                    player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.ITALIC + count + " seconds...");
+                    count--;
+                } else {
+                    player.teleport(targetLocation);
+                    player.sendMessage(ChatColor.AQUA + "Welcome home, " + ChatColor.BLUE + player.getName() + "!");
+                    playTeleportSound(player.getLocation());
+                    cancel(); // Cancel the task after teleportation
+                }
+            }
+        }.runTaskTimer(this, 0L, 20L); // Delay: 0 ticks, Repeat: 20 ticks (1 second)
+    }
+
+    private boolean deleteHomeLocation(String playerName, String homeName) {
+        if (playerHomes != null && playerHomes.containsKey(playerName)) {
+            Map<String, HomeData> homes = playerHomes.get(playerName);
+            if (homes != null && homes.containsKey(homeName)) {
+                homes.remove(homeName);
+                saveHomesData();
+                return true;
+            }
         }
         return false;
     }
 
-
-    private void saveHomeLocation(String playerName, Location location) {
-        if (homesData == null) {
-            homesData = new HashMap<>();
+    private void saveHomeLocation(String playerName, String homeName, Location location) {
+        if (playerHomes == null) {
+            playerHomes = new HashMap<>();
         }
 
-        homesData.put(playerName, new HomeData(location.getX(), location.getY(), location.getZ(), Objects.requireNonNull(location.getWorld()).getName()));
+        Map<String, HomeData> homes = playerHomes.computeIfAbsent(playerName, k -> new HashMap<>());
+        homes.put(homeName, new HomeData(location.getX(), location.getY(), location.getZ(), Objects.requireNonNull(location.getWorld()).getName()));
         saveHomesData();
     }
 
-    private Location getHomeLocation(String playerName) {
-        if (homesData != null && homesData.containsKey(playerName)) {
-            HomeData homeData = homesData.get(playerName);
-            World world = getServer().getWorld(homeData.getWorld());
-            return new Location(world, homeData.getX(), homeData.getY(), homeData.getZ());
+    private Location getHomeLocation(String playerName, String homeName) {
+        if (playerHomes != null && playerHomes.containsKey(playerName)) {
+            Map<String, HomeData> homes = playerHomes.get(playerName);
+            if (homes != null && homes.containsKey(homeName)) {
+                HomeData homeData = homes.get(homeName);
+                World world = Bukkit.getWorld(homeData.getWorld());
+                if (world != null) {
+                    return new Location(world, homeData.getX(), homeData.getY(), homeData.getZ());
+                }
+            }
         }
         return null;
     }
 
     private void loadHomesData() {
         try (FileReader reader = new FileReader(dataFile)) {
-            TypeToken<HashMap<String, HomeData>> token = new TypeToken<>() {};
-            homesData = gson.fromJson(reader, token.getType());
+            TypeToken<HashMap<String, Map<String, HomeData>>> token = new TypeToken<>() {};
+            playerHomes = gson.fromJson(reader, token.getType());
 
-            if (homesData == null) {
-                homesData = new HashMap<>();
+            if (playerHomes == null) {
+                playerHomes = new HashMap<>();
             }
         } catch (IOException e) {
             getLogger().log(Level.SEVERE, "Error loading homes data: " + e.getMessage());
@@ -156,10 +232,14 @@ public class SetHome extends JavaPlugin {
 
     private void saveHomesData() {
         try (FileWriter writer = new FileWriter(dataFile)) {
-            gson.toJson(homesData, writer);
+            gson.toJson(playerHomes, writer);
         } catch (IOException e) {
             getLogger().log(Level.SEVERE, "Error saving homes data: " + e.getMessage());
         }
+    }
+
+    private void playTeleportSound(Location location) {
+        Objects.requireNonNull(location.getWorld()).playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
     }
 
     private static class HomeData {
