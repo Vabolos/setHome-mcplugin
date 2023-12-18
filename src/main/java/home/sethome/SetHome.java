@@ -80,7 +80,7 @@ public class SetHome extends JavaPlugin implements Listener {
             String homeName = args[0];
             saveHomeLocation(player.getName(), homeName, player.getLocation());
             player.sendMessage(ChatColor.AQUA + "Home '" + ChatColor.BLUE + homeName + ChatColor.AQUA + "' location set!");
-            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 5.0f, 1.0f); // Play XP sound
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 5.0f, 1.0f);
             return true;
         } else if (cmd.getName().equalsIgnoreCase("home") && sender instanceof Player) {
             Player player = (Player) sender;
@@ -109,7 +109,10 @@ public class SetHome extends JavaPlugin implements Listener {
     }
 
     private Map<String, HomeData> getPlayerHomes(String playerName) {
-        return (playerHomes != null && playerHomes.containsKey(playerName)) ? playerHomes.get(playerName) : null;
+        if (playerHomes != null && playerHomes.containsKey(playerName)) {
+            return playerHomes.get(playerName);
+        }
+        return null;
     }
 
     private void openHomesGUI(Player player) {
@@ -149,20 +152,26 @@ public class SetHome extends JavaPlugin implements Listener {
         Player player = (Player) event.getWhoClicked();
         Inventory clickedInventory = event.getClickedInventory();
 
-        if (clickedInventory != null && event.getView().getTitle().equals(String.valueOf(ChatColor.DARK_GREEN) + ChatColor.BOLD + "Your Homes")) {
+        if (clickedInventory != null && event.getView().getTitle().equals(ChatColor.BOLD + "Your Homes")) {
             ItemStack clickedItem = event.getCurrentItem();
             if (clickedItem != null && clickedItem.getType() == Material.RED_BED && clickedItem.hasItemMeta()) {
                 event.setCancelled(true);
                 ItemMeta meta = clickedItem.getItemMeta();
                 if (meta != null && meta.hasDisplayName()) {
-                    player.sendMessage(ChatColor.RED + "Use /home <name> to teleport!");
+                    String homeName = ChatColor.stripColor(meta.getDisplayName().replace(ChatColor.AQUA.toString(), ""));
+
+                    // Execute /home <name> command for teleportation
+                    player.performCommand("home " + homeName);
                 }
             }
         }
     }
 
+
+
     private void teleportWithCountdown(Player player, Location targetLocation) {
         player.sendMessage(ChatColor.AQUA + "Teleporting to your home in 3 seconds...");
+
         new BukkitRunnable() {
             int count = 3;
 
@@ -170,11 +179,14 @@ public class SetHome extends JavaPlugin implements Listener {
             public void run() {
                 if (count > 0) {
                     player.sendMessage(String.valueOf(ChatColor.AQUA) + ChatColor.ITALIC + count + " seconds...");
+                    player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.3f, 1.0f);
                     count--;
                 } else {
                     player.teleport(targetLocation);
                     player.sendMessage(ChatColor.AQUA + "Welcome home, " + ChatColor.BLUE + player.getName() + "!");
                     playTeleportSound(player.getLocation());
+                    player.spawnParticle(Particle.REDSTONE, player.getLocation().add(0, 1, 0), 30, 0.5, 0.5, 0.5, new Particle.DustOptions(Color.AQUA, 1));
+                    player.spawnParticle(Particle.ENCHANTMENT_TABLE, player.getLocation().add(0, 1, 0), 30, 0.5, 0.5, 0.5);
                     cancel(); // Cancel the task after teleportation
                 }
             }
