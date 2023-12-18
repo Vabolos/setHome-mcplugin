@@ -119,7 +119,7 @@ public class SetHome extends JavaPlugin implements Listener {
         Map<String, HomeData> playerHomeData = getPlayerHomes(player.getName());
         if (playerHomeData != null && !playerHomeData.isEmpty()) {
             int numRows = (int) Math.ceil((double) playerHomeData.size() / 9);
-            Inventory homesGUI = Bukkit.createInventory(null, numRows * 9, ChatColor.BOLD + "Your Homes");
+            Inventory homesGUI = Bukkit.createInventory(null, numRows * 9, "Your Homes");
 
             int slot = 0;
             for (Map.Entry<String, HomeData> entry : playerHomeData.entrySet()) {
@@ -152,7 +152,7 @@ public class SetHome extends JavaPlugin implements Listener {
         Player player = (Player) event.getWhoClicked();
         Inventory clickedInventory = event.getClickedInventory();
 
-        if (clickedInventory != null && event.getView().getTitle().equals(ChatColor.BOLD + "Your Homes")) {
+        if (clickedInventory != null && event.getView().getTitle().equals("Your Homes")) {
             ItemStack clickedItem = event.getCurrentItem();
             if (clickedItem != null && clickedItem.getType() == Material.RED_BED && clickedItem.hasItemMeta()) {
                 event.setCancelled(true);
@@ -166,7 +166,6 @@ public class SetHome extends JavaPlugin implements Listener {
             }
         }
     }
-
 
 
     private void teleportWithCountdown(Player player, Location targetLocation) {
