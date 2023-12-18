@@ -5,11 +5,13 @@ import com.google.gson.Gson;
 import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -124,7 +126,7 @@ public class SetHome extends JavaPlugin implements Listener {
             int slot = 0;
             for (Map.Entry<String, HomeData> entry : playerHomeData.entrySet()) {
                 String homeName = entry.getKey();
-                ItemStack bedItem = createBedItem(homeName);
+                ItemStack bedItem = createSlotItem(homeName);
                 homesGUI.setItem(slot++, bedItem);
             }
 
@@ -135,14 +137,21 @@ public class SetHome extends JavaPlugin implements Listener {
         }
     }
 
-    private ItemStack createBedItem(String homeName) {
-        ItemStack bedItem = new ItemStack(Material.RED_BED);
-        ItemMeta meta = bedItem.getItemMeta();
+    private ItemStack createSlotItem(String homeName) {
+        ItemStack compassItem = new ItemStack(Material.COMPASS);
+        ItemMeta meta = compassItem.getItemMeta();
+
         if (meta != null) {
             meta.setDisplayName(ChatColor.AQUA + homeName);
-            bedItem.setItemMeta(meta);
+
+            // Adding enchantment glow effect
+            meta.addEnchant(Enchantment.ARROW_INFINITE, 1, false);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+
+            compassItem.setItemMeta(meta);
         }
-        return bedItem;
+
+        return compassItem;
     }
 
     @EventHandler
@@ -154,7 +163,7 @@ public class SetHome extends JavaPlugin implements Listener {
 
         if (clickedInventory != null && event.getView().getTitle().equals("Your Homes")) {
             ItemStack clickedItem = event.getCurrentItem();
-            if (clickedItem != null && clickedItem.getType() == Material.RED_BED && clickedItem.hasItemMeta()) {
+            if (clickedItem != null && clickedItem.getType() == Material.COMPASS && clickedItem.hasItemMeta()) {
                 event.setCancelled(true);
                 ItemMeta meta = clickedItem.getItemMeta();
                 if (meta != null && meta.hasDisplayName()) {
