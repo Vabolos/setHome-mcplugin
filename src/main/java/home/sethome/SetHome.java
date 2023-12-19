@@ -99,6 +99,9 @@ public class SetHome extends JavaPlugin implements Listener {
             String homeName = args.length > 0 ? args[0] : "blank";
             if (deleteHomeLocation(player.getName(), homeName)) {
                 player.sendMessage(ChatColor.RED + "Home '" + homeName + "' deleted!");
+
+                // Play a sound effect upon successful deletion
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 1.0f);
             } else {
                 player.sendMessage(ChatColor.RED + "Usage: /delhome <name>");
             }
