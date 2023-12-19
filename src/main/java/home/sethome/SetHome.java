@@ -91,7 +91,7 @@ public class SetHome extends JavaPlugin implements Listener {
             if (homeLocation != null) {
                 teleportWithCountdown(player, homeLocation);
             } else {
-                player.sendMessage(ChatColor.RED + "Home '" + homeName + "' not found!");
+                player.sendMessage(ChatColor.RED + "Usage: /home <name>");
             }
             return true;
         } else if (cmd.getName().equalsIgnoreCase("delhome") && sender instanceof Player) {
@@ -100,8 +100,9 @@ public class SetHome extends JavaPlugin implements Listener {
             if (deleteHomeLocation(player.getName(), homeName)) {
                 player.sendMessage(ChatColor.RED + "Home '" + homeName + "' deleted!");
             } else {
-                player.sendMessage(ChatColor.RED + "Home '" + homeName + "' not found!");
+                player.sendMessage(ChatColor.RED + "Usage: /delhome <name>");
             }
+            return true;
         } else if (cmd.getName().equalsIgnoreCase("homes") && sender instanceof Player) {
             Player player = (Player) sender;
             openHomesGUI(player);
@@ -109,6 +110,7 @@ public class SetHome extends JavaPlugin implements Listener {
         }
         return false;
     }
+
 
     private Map<String, HomeData> getPlayerHomes(String playerName) {
         if (playerHomes != null && playerHomes.containsKey(playerName)) {
